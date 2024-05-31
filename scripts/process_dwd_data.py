@@ -7,6 +7,7 @@ import logging
 # Setup basic configuration for logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
 def get_unprocessed_files(raw_data_path, processed_path):
     """
     Identify files in the raw data directory that haven't been processed yet.
@@ -18,10 +19,13 @@ def get_unprocessed_files(raw_data_path, processed_path):
     Returns:
     list: A list of filenames (without extension) that have not been processed.
     """
-    processed_files = [f.split('.')[0] for f in os.listdir(processed_path) if os.path.isfile(os.path.join(processed_path, f))]
-    raw_files = [f.split('.')[0] for f in os.listdir(raw_data_path) if os.path.isfile(os.path.join(raw_data_path, f)) and f.split('.')[-1] == 'asc']
+    processed_files = [f.split('.')[0] for f in os.listdir(processed_path) if
+                       os.path.isfile(os.path.join(processed_path, f))]
+    raw_files = [f.split('.')[0] for f in os.listdir(raw_data_path) if
+                 os.path.isfile(os.path.join(raw_data_path, f)) and f.split('.')[-1] == 'asc']
     unprocessed_files = [f for f in raw_files if f not in processed_files]
     return unprocessed_files
+
 
 def parse_ascii_grid(file_path):
     """
@@ -35,6 +39,7 @@ def parse_ascii_grid(file_path):
     """
     header = {}
     data = []
+    print("test")
     with open(file_path, 'r') as file:
         line = file.readline()
         while line.strip() and not line.startswith("[ASCII-Raster-Format]"):
@@ -48,12 +53,14 @@ def parse_ascii_grid(file_path):
 
             # ascii raster info
             if n_cells == 2:
+                print(line)
                 key, value = line.strip().split(' ', maxsplit=1)
                 header[key] = value
 
             else:
                 data.append(list(map(float, line.split(" "))))
     return header, data
+
 
 def create_geotiff_from_data(header, data, output_filename):
     """
@@ -82,15 +89,34 @@ def create_geotiff_from_data(header, data, output_filename):
     dataset.FlushCache()
     dataset = None  # Properly close the dataset
 
+
 def main():
     """
     Main function to process unprocessed ASCII files into compressed GeoTIFF format.
     """
     logging.info("Starting to process raw files from the DWD folder.")
-    unprocessed_files = get_unprocessed_files(config.SAVE_PATH_GLOBAL_DWD, config.SAVE_PATH_GLOBAL_DWD_PROCESSED)
-    for file_name in unprocessed_files:
-        filepath_raw = os.path.join(config.SAVE_PATH_GLOBAL_DWD, f"{file_name}.asc")
-        filepath_processed = os.path.join(config.SAVE_PATH_GLOBAL_DWD_PROCESSED, f"{file_name}.tif")
+    unprocessed_files_global = get_unprocessed_files(config.SAVE_PATH_GLOBAL_DWD, config.SAVE_PATH_GLOBAL_DWD_PROCESSED)
+    unprocessed_files_temperature = get_unprocessed_files(config.SAVE_PATH_TEMPERATURE_DWD, config.SAVE_PATH_TEMPERATURE_DWD_PROCESSED)
+
+    # First process global irradiation data
+    for file_name in unprocessed_files_global:
+        # If it's a global irradiation file
+        save_path = config.SAVE_PATH_GLOBAL_DWD
+        processed_path = config.SAVE_PATH_GLOBAL_DWD_PROCESSED
+        filepath_raw = os.path.join(save_path, f"{file_name}.asc")
+        filepath_processed = os.path.join(processed_path, f"{file_name}.tif")
+        logging.info(f"Processing file: {filepath_raw}")
+        header, data = parse_ascii_grid(filepath_raw)
+        create_geotiff_from_data(header, data, filepath_processed)
+        logging.info(f"Processed and saved to: {filepath_processed}")
+
+    # Then temperature data
+    for file_name in unprocessed_files_temperature:
+        # If it's a global irradiation file
+        save_path = config.SAVE_PATH_TEMPERATURE_DWD
+        processed_path = config.SAVE_PATH_TEMPERATURE_DWD_PROCESSED
+        filepath_raw = os.path.join(save_path, f"{file_name}.asc")
+        filepath_processed = os.path.join(processed_path, f"{file_name}.tif")
         logging.info(f"Processing file: {filepath_raw}")
         header, data = parse_ascii_grid(filepath_raw)
         create_geotiff_from_data(header, data, filepath_processed)
